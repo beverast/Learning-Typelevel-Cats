@@ -86,4 +86,15 @@ object Main extends App {
   val optionCat1 = Option(cat1)
   val optionCat2 = Option.empty[Cat]
   println((optionCat1 === optionCat2).show)
+
+  // START 1.6: Controlling Instance Selection
+  // If we define a `JsonWriter[Option[Int]]` will the expr `Json.toJson(Some(1))` select this instance?
+  // What if we define two `JsonWriter` for `Person`? Which instance is selected for `Json.toJson(aPerson)`
+  // Covariance: trait List[+A]
+  // Means F[B] is a subtype of F[A] if B is a subtype of A
+  // Contravariance: trait F[-A]
+  // F[B] is a subtype of F[A] if A is a subtype of B
+  // Invariance: trait F[A]
+  // F[A] and F[B] are never subtypes of one another
+
 }
