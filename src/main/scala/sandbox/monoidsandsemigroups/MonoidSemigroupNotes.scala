@@ -1,6 +1,7 @@
 package sandbox
 
-//import cats._
+import sandbox.CatsMonoids.Order
+
 //import cats.implicits._
 
 object MonoidSemigroupNotes {
@@ -107,5 +108,12 @@ object MonoidSemigroupNotes {
     }
 
   // SECTION 2.5: MONOIDS IN CATS
+  import CatsMonoids._
+  monoid.combine(Order(1,1), Order(2,2))
+  /*
+  Summary:
+    - A `Semigroup` represeents an addition or combining operation
+    - A `Monoid` extends a `Semigroup` by adding an identity element
+   */
 
 }
