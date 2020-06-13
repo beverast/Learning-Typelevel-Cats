@@ -1,8 +1,5 @@
-package sandbox
+package sandbox.monoids
 
-import sandbox.CatsMonoids.Order
-
-//import cats.implicits._
 
 object MonoidSemigroupNotes {
   /*

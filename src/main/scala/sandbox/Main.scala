@@ -11,5 +11,8 @@ object Main extends App {
   val chpOneNotes = ImplicitNotes
 
   println("CHAPTER 2: MONOIDS AND SEMIGROUPS")
-  val chpTwoNotes = MonoidSemigroupNotes
+  val chpTwoNotes = monoids.MonoidSemigroupNotes
+
+  println("Chapter 3: Functors")
+  val chpThreeNotes = functors.Functors
 }
