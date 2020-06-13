@@ -1,7 +1,7 @@
 *.class
 *.log
 project/target
-project/
+project/project
 target/
 .bloop/
 .metals/
