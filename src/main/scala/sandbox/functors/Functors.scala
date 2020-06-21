@@ -137,5 +137,29 @@ object Functors {
   println(Tree.branch(Tree.leaf(10), Tree.leaf(20)).map(_ * 2))
 
   // SECTION 3.6: Contravariant and Invariant Functors
+  /*
+    - map is like "appending" a transformation
+    - contravariant is like "prepending" a transformation
+    - invariant represents building a bidirectional chain of transformations
+    - THESE SECTIONS CAN/WILL BE SKIPPED UNTIL CHAPTER 6
+   */
 
+  // SECTION 3.9: SUMMARY
+  /*
+ * Functors represent sepquencing of behaviors. Three types covered in this chapter:
+ *   Regular covariant Functors, with their map method, repre. the ability to apply functions
+ *     to a value in some context. Successive calls to map apply these in sequence.
+ *   Contravariant functors, with their contramap method, represent the ability to "prepend"
+ *     functions to a function-like context. Successive calls seq. these funcs in opposite order of map.
+ *   Invariant functors, with imap, represent bidirectional transformations.
+ *
+ * Regular functors are by far the most common of these type classes.
+ * Functors are the building blocks for several more interesting abstractions: monads and applicative functors.
+ *
+ * Functors for collections are extremenly important, as they transform each element independently of the rest.
+ * This allows us to parallelize and distribute transformations on large collections, i.e. MapReduce.
+ * Contravariant and Invariant type classes are less widely applicable, but useful for:
+ *   Building data types that represent transformations
+ *   Semigroupal type class (chapter 6)
+ */
 }
