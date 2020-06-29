@@ -293,4 +293,127 @@ object Monads {
 
   // `ensure` implements filter-like behavior with predicate logic
   monadError.ensure(success)("Number too low")(_ > 1000)
+
+  // SECTION 4.6: The Eval Monad
+  /*
+   * `cats.Eval` is monad that allows us to abstract over different models of computation.
+   * There's eager and lazy computation, and (non-)memoized results.
+   * `Eval` has three subtypes: `Now`, `Later`, and `Always`
+   */
+  import cats.Eval
+
+  val now = Eval.now(math.random + 1000) // eager, memoized
+  val later = Eval.later(math.random + 2000) // lazy, memoized
+  val always = Eval.always(math.random + 3000) // lazy, not memoized
+  println(now.value, later.value, always.value)
+
+  // While semantics of `Eval` instances are maintained, `map`-ed functions
+  // are always called lazily on-demand (`def` semantics)
+  val ans = for {
+    a <- Eval.now { println("Calculating A"); 40 }
+    b <- Eval.always { println("Calculating B"); 2 }
+  } yield {
+    println("Adding A and B")
+    a + b
+  }
+  println(f"First access: ${ans.value}")
+  println(f"Second access: ${ans.vaue}")
+
+  // Eval has a `memoize` method that allows us to memoize a chain of computations.
+  // The result of the chain is cached up to the point where memoize is called
+  // After `memoize` calculations will retain their original semantics
+  val saying = Eval
+    .always { println("Step 1"); "The cat" }
+    .map { str => println("Step 2"); s"$str sat on" }
+    .memoize
+    .map { str => println("Step 3"); s"$str the mat" }
+  println(f"First access: ${saying.value}")
+  println(f"Second access: ${saying.value}")
+
+  // 4.6.4 Trampolining and `Eval.defer`
+  // "Trampolining" allows for nested calls to map and flatMap that won't consume extra stack frames.
+  // "Trampolining" allows for stack safety. This is unsafe code: (e.g. factorial(50000))
+  def factorial(n: BigInt): BigInt =
+    if (n == 1) n else n * factorial(n - 1)
+
+  // Still unsafe: This makes recursive calls before working with Eval's `map`
+  def unsafeFactorial(n: BigInt): Eval[BigInt] =
+    if (n == 1) Eval.now(n) else unsafeFactorial(n - 1).map(_ * n)
+
+  // We can work around this using `Eval.defer`
+  // It takes an existing Eval instance and defers its evaluation
+  // `defer` is trampolined too
+  def safeFactorial(n: BigInt): Eval[BigInt] =
+    if (n == 1) Eval.now(n) else Eval.defer(safeFactorial(n - 1).map(_ * n))
+
+  println(safeFactorial(50000).value)
+
+  // EXERCISE 4.6.5: Safer Folding Using Eval
+  // Make the naive implementation of foldRight stack safe using Eval:
+  def oldFoldRight[A, B](as: List[A], acc: B)(fn: (A, B) => B): B =
+    as match {
+      case head :: tail => fn(head, oldFoldRight(tail, acc)(fn))
+      case Nil          => acc
+    }
+
+  def evalFoldRight[A, B](as: List[A], acc: Eval[B])(
+      fn: (A, Eval[B]) => Eval[B]
+  ): Eval[B] =
+    as match {
+      case head :: tail => Eval.defer(fn(head, evalFoldRight(tail, acc)(fn)))
+      case Nil          => acc
+    }
+
+  // SECTION 4.7: The Writer Monad
+  // `cats.data.Writer` monad allows us to carry a log with our computations.
+  // The log can record messages, errors, and additional data about a computation.
+  // A common use of Writers is recording Seqs of steps in multi-threaded computations
+  // where standard logging can lead to interleaved messages from many contexts
+  // With Writer's log we can run concurrent computations without mixing logs
+  import cats.data.Writer
+
+  Writer(
+    Vector(
+      "It was the best of times",
+      "It was the worst of times"
+    ),
+    1859
+  )
+
+  // Cats provides a way of creating Writers specifying only the log or result.
+  // We must have a Monoid[W] in scope so Cats knows how to produce an empty log:
+  import cats.syntax.applicative._
+
+  type Logged[A] = Writer[Vector[String], A]
+  123.pure[Logged]
+
+  // If we have a log and no result, create a Writer[Unit] using `tell` syntax
+  import cats.syntax.writer._
+
+  Vector("msg1", "msg2", "msg3").tell
+
+  // If we have a result and log, use Writer.apply or the writer syntax
+  val aW = Writer(Vector("msg1", "msg2", "msg3"), 123)
+  val bW = 123.writer(Vector("msg1", "msg2", "msg3"))
+
+  val aResult: Int = aW.value
+  val aLog: Vector[String] = aW.written
+
+  val (log, result) = bW.run
+
+  // Section 4.7.2: Composing and Transforming Writers
+  // Its good practice to use log types with efficient append and concat, like Vector
+  val writer1 = for {
+    a <- 10.pure[Logged]
+    _ <- Vector("a", "b", "c").tell
+    b <- 32.writer(Vector("x", "y", "z"))
+  } yield a + b
+
+  println(writer1)
+
+  // Besides transforming the result with map and flatMap, we can transform
+  // the log into a Writer with the `mapWritten` method:
+  val writer2 = writer1.mapWritten(_.map(_.toUpperCase))
+  println(writer2.run)
+
 }
