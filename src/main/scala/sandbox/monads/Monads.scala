@@ -3,7 +3,7 @@ package sandbox.monads
 object Monads {
   // SECTION 4.1: WHAT IS A MONAD?
   /*
-   * Informally, a monadd is anything with a constructor and a flatMap method.
+   * Informally, a monad is anything with a constructor and a flatMap method.
    * All the functors from chp. 3 (Option, List, Future) are also monads.
    * Scala has special syntax to support monads: for comprehensions.
    *   Scala lacks a concrete type to encompase "things that can be flatMapped" (a benefit of Cats)
@@ -139,24 +139,24 @@ object Monads {
   1.pure[Option]
   1.pure[List]
 
-  def sumSquaure[F[_]: Monad](a: F[Int], b: F[Int]): F[Int] =
+  def sumSquare[F[_]: Monad](a: F[Int], b: F[Int]): F[Int] =
     a.flatMap(x => b.map(y => x * x + y * y))
 
-  def alsoSumSqure[F[_]: Monad](a: F[Int], b: F[Int]): F[Int] =
+  def alsoSumSquare[F[_]: Monad](a: F[Int], b: F[Int]): F[Int] =
     for {
       x <- a
       y <- b
     } yield x * x + y * y
 
-  println(sumSquaure(Option(3), Option(4)))
-  println(sumSquaure(List(1, 2, 3), List(4, 5)))
+  println(sumSquare(Option(3), Option(4)))
+  println(sumSquare(List(1, 2, 3), List(4, 5)))
 
   // SECTION 4.3: THE IDENTITY MONAD
   // An issue with the above code is that sumSquare can't accept plain values
   // Cats provides `Id` type to abstract over monadic and non-monadic values
   import cats.Id
 
-  println(sumSquaure(3: Id[Int], 4: Id[Int]))
+  println(sumSquare(3: Id[Int], 4: Id[Int]))
   val a = Monad[Id].pure(3)
   val b = Monad[Id].flatMap(a)(_ + 1)
   val c =
