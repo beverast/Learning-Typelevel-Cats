@@ -305,7 +305,7 @@ object Monads {
   val now = Eval.now(math.random + 1000) // eager, memoized
   val later = Eval.later(math.random + 2000) // lazy, memoized
   val always = Eval.always(math.random + 3000) // lazy, not memoized
-  println(now.value, later.value, always.value)
+  println((now.value, later.value, always.value))
 
   // While semantics of `Eval` instances are maintained, `map`-ed functions
   // are always called lazily on-demand (`def` semantics)
@@ -317,7 +317,7 @@ object Monads {
     a + b
   }
   println(f"First access: ${ans.value}")
-  println(f"Second access: ${ans.vaue}")
+  println(f"Second access: ${ans.value}")
 
   // Eval has a `memoize` method that allows us to memoize a chain of computations.
   // The result of the chain is cached up to the point where memoize is called
@@ -346,7 +346,7 @@ object Monads {
   def safeFactorial(n: BigInt): Eval[BigInt] =
     if (n == 1) Eval.now(n) else Eval.defer(safeFactorial(n - 1).map(_ * n))
 
-  println(safeFactorial(50000).value)
+  println(safeFactorial(50).value) // A Long could be used here if desired
 
   // EXERCISE 4.6.5: Safer Folding Using Eval
   // Make the naive implementation of foldRight stack safe using Eval:
