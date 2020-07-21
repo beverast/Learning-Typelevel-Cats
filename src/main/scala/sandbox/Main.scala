@@ -6,18 +6,21 @@ import cats.implicits._
 object Main extends App {
   println("Hello " |+| "Cats!")
 
-  println("CHAPTER 1: IMPLICITS & TYPECLASSES")
+  println("\nCHAPTER 1: IMPLICITS & TYPECLASSES")
   val chpOneNotes = ImplicitNotes
 
-  println("CHAPTER 2: MONOIDS AND SEMIGROUPS")
+  println("\nCHAPTER 2: MONOIDS AND SEMIGROUPS")
   val chpTwoNotes = monoids.MonoidSemigroupNotes
 
-  println("Chapter 3: FUNCTORS")
+  println("\nChapter 3: FUNCTORS")
   val chpThreeNotes = functors.Functors
 
-  println("Chapter 4: MONADS")
+  println("\nChapter 4: MONADS")
   val chpFourNotes = monads.Monads
 
-  println("CHAPTER 5: MONAD TRANSFORMERS")
+  println("\nCHAPTER 5: MONAD TRANSFORMERS")
   val chpFiveNotes = monadtransformers.MonadTransformers
+
+  println("\nCHAPTER 6: SEMIGROUPAL AND APPLICATIVE")
+  val chpSixNotes = semigroupalandapplicative.SemigroupalAndApplicative
 }
