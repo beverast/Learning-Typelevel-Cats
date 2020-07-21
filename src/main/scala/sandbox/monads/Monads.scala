@@ -1,6 +1,7 @@
 package sandbox.monads
 
 object Monads {
+  println("\nCHAPTER 4: MONADS")
   // SECTION 4.1: WHAT IS A MONAD?
   /*
    * Informally, a monad is anything with a constructor and a flatMap method.
