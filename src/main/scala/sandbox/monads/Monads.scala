@@ -416,4 +416,363 @@ object Monads {
   val writer2 = writer1.mapWritten(_.map(_.toUpperCase))
   println(writer2.run)
 
+  // We can transform both log and result imultaneously using bimap or mapBoth.
+  // bimap: takes 2 function parameters: one for log and one for result.
+  // mapBoth takes a single function that accepts two parameters
+  val writer3 = writer1.bimap(
+    log => log.map(_.toUpperCase),
+    res => res * 100
+  )
+  println(writer3.run)
+
+  val writer4 = writer1.mapBoth { (log, res) =>
+    val log2 = log.map(_ + "!")
+    val res2 = res * 1000
+    (log2, res2)
+  }
+  println(writer4.run)
+
+  // Clear the log with the `reset` method
+  // Swap log and result with `swap` method
+  val writer5 = writer1.reset
+  println(writer5.run)
+
+  val writer6 = writer1.swap
+  println(writer6.run)
+
+  // EXERCISE 4.7.3: Show You're Working
+  // Rewrite `factorial` so it captures the log messages in a Writer.
+  // Demonstarte that this allows us to reliably separate the logs for concurrent computations.
+  def slowly[A](body: => A) =
+    try body
+    finally Thread.sleep(100)
+
+  // Define a type alias for Writer so we can use it with `pure` syntax
+  type LoggedEx[A] = Writer[Vector[String], A]
+
+  // def factorialExercise(n: Int): LoggedEx[Int] = {
+  //   for {
+  //     ans <- if (n == 0) {
+  //       1.pure[Logged]
+  //     } else {
+  //       slowly(factorial(n - 1).map(_ * n))
+  //     }
+  //     _ <- Vector(s"fact $n $ans")
+  //   } yield ans
+  // }
+
+  // Await.result(
+  //   Future
+  //     .sequence(
+  //       Vector(
+  //         Future(factorial(5)),
+  //         Future(factorial(5))
+  //       )
+  //     )
+  //     .map(_.map(_.written)),
+  //   5.seconds
+  // )
+
+  /* 4.8: THE READER MONAD
+  Allows us to sequence operations that depend on some input.
+  Instances of `Reader` wrap up functions of one argument, providing useful methods for composing them.
+  One common use for Readers is dependency injection. If we have a number of operations
+  that all depend on some external configuration, we can chain them together using a Reader
+  to produce one large operation that accepts the configuration as a parameter and runs our program
+  in the order specified.
+   */
+
+  // 4.8.1: Creating and Unpacking Readers
+  import cats.data.Reader
+
+  final case class Cat(name: String, favoriteFood: String)
+  val catName: Reader[Cat, String] =
+    Reader(cat => cat.name)
+
+  // We can extract the function again using the Reader's `run` method and call it using `apply` as usual:
+  catName.run(Cat("Garfield", "lasagne"))
+
+  // 4.8.2: Composing Readers
+  // The `map` method simply extends the computation in the Reader by
+  // passing its result through a function:
+  val greetKitty: Reader[Cat, String] =
+    catName.map(name => s"Hello ${name}")
+  greetKitty.run(Cat("Heathcliff", "junk food"))
+
+  // Reader's flatMap allows us to combine Readers that depend on the same input type
+  val feedKitty: Reader[Cat, String] =
+    Reader(cat => s"Have a nice bowl of ${cat.favoriteFood}")
+
+  val greetAndFeed: Reader[Cat, String] =
+    for {
+      greet <- greetKitty
+      feed <- feedKitty
+    } yield s"$greet. $feed."
+
+  greetAndFeed(Cat("Garfield", "lasagne"))
+  greetAndFeed(Cat("Heathcliff", "junk food"))
+
+  // EXERCISE 4.8.3: Hacking on Readers
+  // Create a type alias `DbReader` for a `Reader` that consumes a Db as input
+  final case class Db(
+      usernames: Map[Int, String],
+      passwords: Map[String, String]
+  )
+  type DbReader[A] = Reader[Db, A]
+
+  // Now create methods that generate DbReaders to look up the username for
+  // and Int user ID, and look up the password for a String username
+  def findUsername(userId: Int): DbReader[Option[String]] =
+    Reader(db => db.usernames.get(userId))
+
+  def checkPassword(username: String, password: String): DbReader[Boolean] =
+    Reader(db => db.passwords.get(username).contains(password))
+
+  def checkLogin(userId: Int, password: String): DbReader[Boolean] =
+    for {
+      username <- findUsername(userId)
+      passOk <- username
+        .map { username => checkPassword(username, password) }
+        .getOrElse(false.pure[DbReader])
+    } yield passOk
+
+  val users = Map(
+    1 -> "dade",
+    2 -> "kate",
+    3 -> "margo"
+  )
+
+  val passwords = Map(
+    "dade" -> "zerocool",
+    "kate" -> "acidburn",
+    "margo" -> "secret"
+  )
+
+  val db = Db(users, passwords)
+  println(checkLogin(1, "zerocool").run(db))
+  println(checkLogin(4, "davinci").run(db))
+
+  // 4.9: The State Monad
+  // Allows us to pass around additional state as part of a computation.
+  // `State` instances represent atomic state operations and are threaded together using map and flatMap.
+
+  // 4.9.1: Creating and Unpacking State
+  // An instance of State is a function that does two things:
+  // 1. Transforms an input state to an output state
+  // 2. Computes a result
+  import cats.data.State
+  val someState = State[Int, String] { state =>
+    (state, s"The state is $state")
+  }
+
+  // We can "run" our monad by supplying an initial state.
+  // State provides three methods: run, runS, runA (return diff. combinations of state and result)
+  // Each method returns an instance of Eval, which State uses to maintain stack safety
+  val (state, resultState) = someState.run(10).value
+  val justTheState = someState.runS(10).value
+  val justTheResult = someState.runA(10).value
+
+  // 4.9.2: Composing and Transforming State
+  val step1 = State[Int, String] { num =>
+    val ans = num + 1
+    (ans, s"Result of step1: $ans")
+  }
+
+  val step2 = State[Int, String] { num =>
+    val ans = num * 2
+    (ans, s"Result of step2: $ans")
+  }
+
+  val both = for {
+    a <- step1
+    b <- step2
+  } yield (a, b)
+
+  val (aState, someResult) = both.run(20).value
+  println(s"$aState, $someResult")
+
+  // `get` extracts the state as the result
+  // `set` updates the state and returns unit as the result
+  // `pure` ignores the state and returns a supplied result
+  // `inspect` extracts the state via a transformation function
+  // `modify` updates the state using an update function
+  val getDemo = State.get[Int]
+  getDemo.run(10).value
+
+  val setDemo = State.set[Int](30)
+  setDemo.run(10).value
+
+  val pureDemo = State.pure[Int, String]("Result")
+  pureDemo.run(10).value
+
+  val inspectDemo = State.inspect[Int, String](x => s"${x}!")
+  inspectDemo.run(10).value
+
+  val modifyDemo = State.modify[Int](_ + 1)
+  modifyDemo.run(10).value
+
+  // We can assemble these building blocks using a for comprehension.
+  // We typically ignore the result of intermediate stages that only
+  // represent transformations on the state:
+  import State._
+
+  val program: State[Int, (Int, Int, Int)] = for {
+    a <- get[Int]
+    _ <- set[Int](a + 1)
+    b <- get[Int]
+    _ <- modify[Int](_ + 1)
+    c <- inspect[Int, Int](_ * 1000)
+  } yield (a, b, c)
+
+  val (progState, progResult) = program.run(1).value
+  println(s"progState: $progState")
+  println(s"progResult: $progResult")
+
+  // EXERCISE 4.9.3: Post-Order Calculator
+  type CalcState[A] = State[List[Int], A]
+
+  def operand(num: Int): CalcState[Int] =
+    State[List[Int], Int] { stack => (num :: stack, num) }
+
+  def operator(func: (Int, Int) => Int): CalcState[Int] =
+    State[List[Int], Int] {
+      case b :: a :: tail =>
+        val ans = func(a, b)
+        (ans :: tail, ans)
+      case _ => sys.error("Fail!")
+    }
+
+  def evalOne(sym: String): CalcState[Int] =
+    sym match {
+      case "+" => operator(_ + _)
+      case "-" => operator(_ - _)
+      case "*" => operator(_ * _)
+      case "/" => operator(_ / _)
+      case num => operand(num.toInt)
+    }
+
+  println(evalOne("42").runA(Nil).value)
+
+  val evalProgram = for {
+    _ <- evalOne("1")
+    _ <- evalOne("2")
+    _ <- evalOne("3")
+  } yield ans
+
+  println(evalProgram.runA(Nil).value)
+
+  // Now generalize it by writing `evalAll` that computes the result of a List[String]
+  def evalAll(input: List[String]): CalcState[Int] =
+    input.foldLeft(0.pure[CalcState]) { (a, b) => a.flatMap(_ => evalOne(b)) }
+
+  val multistageProgram = evalAll(List("1", "2", "+", "3", "*"))
+  println(multistageProgram.runA(Nil).value)
+
+  val biggerProgram = for {
+    _ <- evalAll(List("1", "2", "+"))
+    _ <- evalAll(List("3", "4", "+"))
+    ans <- evalOne("*")
+  } yield ans
+  println(biggerProgram.runA(Nil).value)
+
+  def evalInput(input: String): Int =
+    evalAll(input.split(" ").toList).runA(Nil).value
+
+  println(evalInput("1 2 + 3 4 + *"))
+
+  // SECTION 4.10: Defining Custom Monads
+  // We can define a Monad for a custom type by providing implementations for: flatMap, pure, tailRecM
+  // Here's an impl. of Monad for Option as an example:
+  import scala.annotation.tailrec
+
+  val optionMonad = new Monad[Option] {
+    def flatMap[A, B](opt: Option[A])(fn: A => Option[B]): Option[B] =
+      opt flatMap fn
+
+    def pure[A](opt: A): Option[A] =
+      Some(opt)
+
+    // tailRecM is an optimization for stack space consumed by nested calls to flatMap
+    // The method should recursively call itself until the result of `fn` returns a `Right`
+    @tailrec
+    def tailRecM[A, B](a: A)(fn: A => Option[Either[A, B]]): Option[B] =
+      fn(a) match {
+        case None           => None
+        case Some(Left(a1)) => tailRecM(a1)(fn)
+        case Some(Right(b)) => Some(b)
+      }
+  }
+
+  // Let's motivate `tailRecM` by implementing a method that calls a function until
+  // the function indicates it should stop. We'll use Monads bc they represent sequencing
+  // and many have some notion of stopping.
+  import cats.syntax.flatMap._
+
+  // This will cause a StackOverflowError
+  def retry[F[_]: Monad, A](start: A)(f: A => F[A]): F[A] =
+    f(start).flatMap { a => retry(a)(f) }
+
+  // Stack safety no matter what
+  def retryTailRecM[F[_]: Monad, A](start: A)(f: A => F[A]): F[A] =
+    Monad[F].tailRecM(start) { a => f(a).map(a2 => Left(a2)) }
+
+  println(retryTailRecM(100000)(a => if (a == 0) None else Some(a - 1)))
+
+  // The Monad type class offers many helper methods
+  // All monads in Cats have implementations of tailRecM
+  import cats.syntax.monad._
+
+  def retryM[F[_]: Monad, A](start: A)(f: A => F[A]): F[A] =
+    start.iterateWhileM(f)(_ => true)
+
+  // EXERCISE 4.10.1: Branching Out Further with Monads
+  // Let's write a Monad for our `Tree` data type from last chapter
+  sealed trait Tree[+A]
+
+  final case class Branch[A](left: Tree[A], right: Tree[A]) extends Tree[A]
+  final case class Leaf[A](value: A) extends Tree[A]
+
+  def branch[A](left: Tree[A], right: Tree[A]): Tree[A] =
+    Branch(left, right)
+
+  def leaf[A](value: A): Tree[A] =
+    Leaf(value)
+
+  implicit val treeMonad = new Monad[Tree] {
+    def pure[A](value: A): Tree[A] =
+      Leaf(value)
+
+    def flatMap[A, B](tree: Tree[A])(func: A => Tree[B]): Tree[B] =
+      tree match {
+        case Branch(l, r) => Branch(flatMap(l)(func), flatMap(r)(func))
+        case Leaf(value)  => func(value)
+      }
+
+    def tailRecM[A, B](a: A)(f: A => Tree[Either[A, B]]): Tree[B] =
+      flatMap(f(a)) {
+        case Left(value)  => tailRecM(value)(f)
+        case Right(value) => Leaf(value)
+      }
+  }
+
+  val treeM =
+    for {
+      a <- branch(leaf(100), leaf(200))
+      b <- branch(leaf(a - 10), leaf(1 + 10))
+      c <- branch(leaf(b - 1), leaf(b + 1))
+    } yield c
+
+  println(treeM)
+
+  // SECTION 4.11: Summary
+  /*
+ * flatMap can be seen as an operator for sequencing computations,
+ *    dictating the order in which operations must happen
+ * From this viewpoint, `Option` represents a computation that can fail w/o
+ *    an error message
+ * `Either` represents computations that can fail with a message
+ * `List` reprs multiple possible results
+ * `Future` reprs a computation that may produce a value at some point in the future
+ * Cats includes: `Id`, `Reader`, `Writer`, `State`
+ */
 }
