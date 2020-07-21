@@ -17,4 +17,7 @@ object Main extends App {
 
   println("Chapter 4: MONADS")
   val chpFourNotes = monads.Monads
+
+  println("CHAPTER 5: MONAD TRANSFORMERS")
+  val chpFiveNotes = monadtransformers.MonadTransformers
 }
