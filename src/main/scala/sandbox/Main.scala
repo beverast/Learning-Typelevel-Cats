@@ -23,4 +23,7 @@ object Main extends App {
 
   println("\nCHAPTER 6: SEMIGROUPAL AND APPLICATIVE")
   val chpSixNotes = semigroupalandapplicative.SemigroupalAndApplicative
+
+  println("\nCHAPTER 7: FOLDABLE AND TRAVERSE")
+  val chpSevenNotes = foldableandtraverse.FoldableAndTraverse
 }
